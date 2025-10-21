@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌩️ OpenStack Management Console</h1>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading">Loading...</div>
+        
+        <!-- Message Display -->
+        <div id="message" class="message"></div>
+
+        <!-- Test Connection -->
+        <div class="section">
+            <h2>🔌 Connection Test</h2>
+            <button id="testBtn" class="btn">Test Connection</button>
+        </div>
+
+        <!-- Login Section -->
+        <div class="section">
+            <h2>🔐 Login</h2>
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="username" placeholder="Enter username">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" placeholder="Enter password">
+            </div>
+            <div class="form-group">
+                <label>User Domain Name:</label>
+                <input type="text" id="userDomainName" value="Default" placeholder="Default">
+            </div>
+            <button id="loginBtn" class="btn btn-primary">Login</button>
+        </div>
+
+        <!-- Project Selection -->
+        <div id="projectSection" class="section" style="display: none;">
+            <h2>📁 Select Project</h2>
+            <div class="form-group">
+                <label>Project:</label>
+                <select id="projectSelect">
+                    <option value="">-- Select a project --</option>
+                </select>
+            </div>
+            <button id="selectProjectBtn" class="btn btn-primary">Connect to Project</button>
+        </div>
+
+        <!-- Resource Management -->
+        <div id="resourceSection" class="section" style="display: none;">
+            
+            <!-- Network Management -->
+            <div class="subsection">
+                <h3>🌐 Network Management</h3>
+                
+                <div class="form-group">
+                    <label>Network Name:</label>
+                    <input type="text" id="networkName" placeholder="my-network">
+                    <button id="createNetworkBtn" class="btn">Create Network</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Network:</label>
+                    <select id="networkSelect">
+                        <option value="">-- Select a network --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Subnet Name:</label>
+                    <input type="text" id="subnetName" placeholder="my-subnet">
+                </div>
+                <div class="form-group">
+                    <label>CIDR:</label>
+                    <input type="text" id="cidr" placeholder="192.168.1.0/24">
+                    <button id="createSubnetBtn" class="btn">Create Subnet</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Fixed IP (optional):</label>
+                    <input type="text" id="fixedIp" placeholder="192.168.1.10">
+                    <button id="createPortBtn" class="btn">Create Port</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Port ID (for instance):</label>
+                    <input type="text" id="portId" placeholder="Port ID will appear here" readonly>
+                </div>
+            </div>
+
+            <!-- Instance Creation -->
+            <div class="subsection">
+                <h3>🖥️ Create Instance</h3>
+                
+                <div class="form-group">
+                    <label>Instance Name:</label>
+                    <input type="text" id="instanceName" placeholder="my-instance">
+                </div>
+
+                <div class="form-group">
+                    <label>Image:</label>
+                    <select id="imageSelect">
+                        <option value="">-- Select an image --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Flavor:</label>
+                    <select id="flavorSelect">
+                        <option value="">-- Select a flavor --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Security Groups:</label>
+                    <div id="securityGroupsList"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Key Pair (optional):</label>
+                    <select id="keypairSelect">
+                        <option value="">-- No keypair --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Custom Script (optional):</label>
+                    <textarea id="customScript" rows="4" placeholder="#!/bin/bash&#10;echo 'Hello World'"></textarea>
+                </div>
+
+                <button id="createInstanceBtn" class="btn btn-success">Create Instance</button>
+            </div>
+
+            <!-- Instances List -->
+            <div class="subsection">
+                <h3>📋 Instances</h3>
+                <button id="refreshInstancesBtn" class="btn">Refresh</button>
+                <div id="instancesList" class="instances-list"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
