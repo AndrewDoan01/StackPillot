@@ -20,12 +20,12 @@ async function testLocalLogin() {
             }
         );
 
-    console.log('\n=== Local Response ===');
-    console.log('Status:', response.status);
-    // Mask token in output
-    const out = JSON.parse(JSON.stringify(response.data));
-    if (out.unscopedToken) out.unscopedToken = out.unscopedToken.substring(0, 20) + '...';
-    console.log('Body:', JSON.stringify(out, null, 2));
+        console.log('\n=== Local Response ===');
+        console.log('Status:', response.status);
+        // Mask token in output
+        const out = JSON.parse(JSON.stringify(response.data));
+        if (out.unscopedToken) out.unscopedToken = out.unscopedToken.substring(0, 20) + '...';
+        console.log('Body:', JSON.stringify(out, null, 2));
 
     } catch (error) {
         console.error('\n✗ Error when calling local API:');
