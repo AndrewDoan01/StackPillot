@@ -147,6 +147,7 @@
     const networkNameEl = qs('networkName');
     const createNetworkBtn = qs('createNetworkBtn');
     const networkSelect = qs('networkSelect');
+    const refreshNetworksBtn = qs('refreshNetworksBtn');
     const subnetNameEl = qs('subnetName');
     const cidrEl = qs('cidr');
     const createSubnetBtn = qs('createSubnetBtn');
@@ -185,7 +186,7 @@
     async function refreshNetworks() {
         if (!scopedToken) return;
         try {
-            const r = await fetch('/api/networks', { headers: { 'x-auth-token': scopedToken } });
+            const r = await fetch('/api/networks', { headers: { 'x-auth-token': scopedToken, 'x-network-endpoint': endpoints.network || '' } });
             const j = await r.json();
             if (!r.ok) { showMessage(j.message || 'Failed to load networks', true); return; }
             // populate network select
@@ -252,6 +253,7 @@
     createNetworkBtn?.addEventListener('click', createNetwork);
     createSubnetBtn?.addEventListener('click', createSubnet);
     createPortBtn?.addEventListener('click', createPort);
+    refreshNetworksBtn?.addEventListener('click', refreshNetworks);
 
     // initial state
     setLoading(false);

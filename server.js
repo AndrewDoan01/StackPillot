@@ -31,13 +31,24 @@ function getServiceEndpoint(catalog, serviceType, interfaceType = 'public') {
 // Ensure network endpoint includes version path (default to /v2.0)
 function getNetworkBaseFromHeaderOrCatalog(req) {
     const headerUrl = req.headers['x-network-endpoint'];
-    let base = headerUrl || `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/network`;
+    let base = '';
+    if (headerUrl) {
+        base = headerUrl;
+    } else {
+        try {
+            const authUrl = new URL(OPENSTACK_AUTH_URL);
+            base = authUrl.origin + '/network';
+        } catch (e) {
+            // fallback: try to strip known suffix
+            base = OPENSTACK_AUTH_URL.replace(/identity\/?v?3?\/?$/i, '').replace(/\/+$/,'') + '/network';
+        }
+    }
     // If base does not contain a version segment like /v2, append /v2.0
     if (!/\/v\d+/i.test(base)) {
-        base = base.replace(/\/+$/, '') + '/v2.0';
+        base = base.replace(/\/+$/,'') + '/v2.0';
     }
     // remove trailing slash
-    return base.replace(/\/+$/, '');
+    return base.replace(/\/+$/,'');
 }
 
 // ============================================
@@ -285,8 +296,10 @@ app.get('/api/networks', async (req, res) => {
     const token = req.headers['x-auth-token'];
 
     try {
+        const networkBase = getNetworkBaseFromHeaderOrCatalog(req);
+        console.log('GET /api/networks -> networkBase =', networkBase);
         const response = await axios.get(
-            `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/network/v2.0/networks`,
+            `${networkBase}/networks`,
             {
                 headers: {
                     'X-Auth-Token': token
