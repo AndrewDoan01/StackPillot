@@ -20,12 +20,24 @@ const OPENSTACK_REGION = process.env.OPENSTACK_REGION || 'RegionOne';
 function getServiceEndpoint(catalog, serviceType, interfaceType = 'public') {
     const service = catalog.find(s => s.type === serviceType);
     if (!service) return null;
-    
-    const endpoint = service.endpoints.find(e => 
+
+    const endpoint = service.endpoints.find(e =>
         e.interface === interfaceType && e.region === OPENSTACK_REGION
     );
-    
+
     return endpoint ? endpoint.url : null;
+}
+
+// Ensure network endpoint includes version path (default to /v2.0)
+function getNetworkBaseFromHeaderOrCatalog(req) {
+    const headerUrl = req.headers['x-network-endpoint'];
+    let base = headerUrl || `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/network`;
+    // If base does not contain a version segment like /v2, append /v2.0
+    if (!/\/v\d+/i.test(base)) {
+        base = base.replace(/\/+$/, '') + '/v2.0';
+    }
+    // remove trailing slash
+    return base.replace(/\/+$/, '');
 }
 
 // ============================================
@@ -38,7 +50,7 @@ app.get('/api/test', async (req, res) => {
         const response = await axios.get(OPENSTACK_AUTH_URL, {
             timeout: 5000
         });
-        
+
         res.json({
             success: true,
             message: 'Connected to OpenStack',
@@ -362,8 +374,9 @@ app.post('/api/network', async (req, res) => {
     const { name } = req.body;
 
     try {
+        const networkBase = getNetworkBaseFromHeaderOrCatalog(req);
         const response = await axios.post(
-            `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/network/v2.0/networks`,
+            `${networkBase}/networks`,
             {
                 network: {
                     name: name,
@@ -400,8 +413,9 @@ app.post('/api/subnet', async (req, res) => {
     const { name, networkId, cidr } = req.body;
 
     try {
+        const networkBase = getNetworkBaseFromHeaderOrCatalog(req);
         const response = await axios.post(
-            `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/network/v2.0/subnets`,
+            `${networkBase}/subnets`,
             {
                 subnet: {
                     name: name,
@@ -451,8 +465,9 @@ app.post('/api/port', async (req, res) => {
             portData.port.fixed_ips = [{ ip_address: fixedIp }];
         }
 
+        const networkBase = getNetworkBaseFromHeaderOrCatalog(req);
         const response = await axios.post(
-            `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/network/v2.0/ports`,
+            `${networkBase}/ports`,
             portData,
             {
                 headers: {
