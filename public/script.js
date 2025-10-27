@@ -21,9 +21,22 @@
         loadingEl.style.display = on ? 'block' : 'none';
     }
 
-    function showMessage(text, isError = false) {
+    function showMessage(text, isError = false, details = null) {
         messageEl.textContent = text;
         messageEl.style.color = isError ? 'crimson' : 'green';
+        const detailsEl = qs('messageDetails');
+        if (!detailsEl) return;
+        if (details) {
+            try {
+                detailsEl.textContent = typeof details === 'string' ? details : JSON.stringify(details, null, 2);
+            } catch (e) {
+                detailsEl.textContent = String(details);
+            }
+            detailsEl.style.display = 'block';
+        } else {
+            detailsEl.style.display = 'none';
+            detailsEl.textContent = '';
+        }
     }
 
     async function testConnection() {
@@ -61,7 +74,7 @@
 
             const data = await res.json();
             if (!res.ok) {
-                showMessage(data.message || 'Authentication failed', true);
+                showMessage(data.message || 'Authentication failed', true, data.details || data);
                 setLoading(false);
                 return;
             }
@@ -77,7 +90,7 @@
 
             const pJson = await pRes.json();
             if (!pRes.ok) {
-                showMessage(pJson.message || 'Failed to get projects', true);
+                showMessage(pJson.message || 'Failed to get projects', true, pJson.details || pJson);
                 setLoading(false);
                 return;
             }
@@ -123,7 +136,7 @@
 
             const j = await r.json();
             if (!r.ok) {
-                showMessage(j.message || 'Failed to get scoped token', true);
+                showMessage(j.message || 'Failed to get scoped token', true, j.details || j);
                 return;
             }
 
@@ -135,8 +148,12 @@
             resourceSection.style.display = '';
             showMessage('Connected to project: ' + (j.project?.name || projectId));
 
-            // Refresh network list automatically
+            // Refresh resource lists automatically
             await refreshNetworks();
+            await fetchImages();
+            await fetchFlavors();
+            await fetchKeypairs();
+            await refreshInstances();
 
         } catch (err) {
             showMessage('Error: ' + err.message, true);
@@ -173,10 +190,10 @@
             });
             const data = await res.json();
             if (!res.ok) {
-                showMessage(data.message || 'Failed to create network', true);
+                showMessage(data.message || 'Failed to create network', true, data.details || data);
                 return;
             }
-            showMessage('Network created: ' + (data.network?.name || data.network?.id || 'OK'));
+            showMessage('Network created: ' + (data.network?.name || data.network?.id || 'OK'), false, data);
             await refreshNetworks();
         } catch (err) {
             showMessage('Create network error: ' + err.message, true);
@@ -188,7 +205,7 @@
         try {
             const r = await fetch('/api/networks', { headers: { 'x-auth-token': scopedToken, 'x-network-endpoint': endpoints.network || '' } });
             const j = await r.json();
-            if (!r.ok) { showMessage(j.message || 'Failed to load networks', true); return; }
+            if (!r.ok) { showMessage(j.message || 'Failed to load networks', true, j.details || j); return; }
             // populate network select
             networkSelect.innerHTML = '<option value="">-- Select a network --</option>';
             (j.networks || []).forEach(n => {
@@ -201,6 +218,121 @@
         } catch (err) {
             showMessage('Error loading networks: ' + err.message, true);
         }
+    }
+
+    // --- Images / Flavors / Keypairs / Instances handlers
+    const imageSelect = qs('imageSelect');
+    const flavorSelect = qs('flavorSelect');
+    const keypairSelect = qs('keypairSelect');
+    const instanceNameEl = qs('instanceName');
+    const createInstanceBtn = qs('createInstanceBtn');
+    const refreshInstancesBtn = qs('refreshInstancesBtn');
+    const instancesList = qs('instancesList');
+
+    async function fetchImages() {
+        if (!scopedToken) return;
+        try {
+            const r = await fetch('/api/images', { headers: { 'x-auth-token': scopedToken, 'x-image-endpoint': endpoints.image || '' } });
+            const j = await r.json();
+            if (!r.ok) { showMessage(j.message || 'Failed to load images', true, j.details || j); return; }
+            imageSelect.innerHTML = '<option value="">-- Select an image --</option>';
+            (j.images || []).forEach(img => {
+                const opt = document.createElement('option');
+                opt.value = img.id || img.uuid || '';
+                opt.textContent = (img.name || img.id || opt.value) + (img.min_disk ? ` (min_disk:${img.min_disk}GB)` : '');
+                imageSelect.appendChild(opt);
+            });
+            showMessage('Loaded ' + (j.images?.length || 0) + ' images');
+        } catch (err) {
+            showMessage('Error loading images: ' + err.message, true);
+        }
+    }
+
+    async function fetchFlavors() {
+        if (!scopedToken) return;
+        try {
+            const r = await fetch('/api/flavors', { headers: { 'x-auth-token': scopedToken, 'x-compute-endpoint': endpoints.compute || '' } });
+            const j = await r.json();
+            if (!r.ok) { showMessage(j.message || 'Failed to load flavors', true, j.details || j); return; }
+            flavorSelect.innerHTML = '<option value="">-- Select a flavor --</option>';
+            (j.flavors || []).forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id || f.flavorid || '';
+                opt.textContent = (f.name || f.id || opt.value) + (f.disk ? ` (disk:${f.disk}GB)` : '');
+                flavorSelect.appendChild(opt);
+            });
+            showMessage('Loaded ' + (j.flavors?.length || 0) + ' flavors');
+        } catch (err) {
+            showMessage('Error loading flavors: ' + err.message, true);
+        }
+    }
+
+    async function fetchKeypairs() {
+        if (!scopedToken) return;
+        try {
+            const r = await fetch('/api/keypairs', { headers: { 'x-auth-token': scopedToken, 'x-compute-endpoint': endpoints.compute || '' } });
+            const j = await r.json();
+            if (!r.ok) { showMessage(j.message || 'Failed to load keypairs', true, j.details || j); return; }
+            keypairSelect.innerHTML = '<option value="">-- No keypair --</option>';
+            (j.keypairs || []).forEach(k => {
+                const opt = document.createElement('option');
+                const name = k.keypair?.name || k.name || k.key_name || '';
+                opt.value = name;
+                opt.textContent = name;
+                keypairSelect.appendChild(opt);
+            });
+            showMessage('Loaded ' + (j.keypairs?.length || 0) + ' keypairs');
+        } catch (err) {
+            showMessage('Error loading keypairs: ' + err.message, true);
+        }
+    }
+
+    async function refreshInstances() {
+        if (!scopedToken) return;
+        try {
+            const r = await fetch('/api/instances', { headers: { 'x-auth-token': scopedToken, 'x-compute-endpoint': endpoints.compute || '' } });
+            const j = await r.json();
+            if (!r.ok) { showMessage(j.message || 'Failed to load instances', true, j.details || j); return; }
+            instancesList.innerHTML = '';
+            (j.instances || []).forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'instance-item';
+                div.textContent = `${s.name || s.id} — ${s.status || ''} — ${s.id}`;
+                instancesList.appendChild(div);
+            });
+            showMessage('Loaded ' + (j.instances?.length || 0) + ' instances');
+        } catch (err) {
+            showMessage('Error loading instances: ' + err.message, true);
+        }
+    }
+
+    async function createInstance() {
+        if (!scopedToken) { showMessage('Not connected to a project', true); return; }
+        const name = instanceNameEl.value.trim() || ('instance-' + Date.now());
+        const imageId = imageSelect.value;
+        const flavorId = flavorSelect.value;
+        const portId = portIdEl.value.trim();
+        const keypair = keypairSelect.value || null;
+        const customScript = qs('customScript')?.value || null;
+
+        if (!imageId || !flavorId || !portId) { showMessage('Image, flavor and port are required', true); return; }
+        setLoading(true); showMessage('Creating instance...');
+        try {
+            const payload = { name, imageId, flavorId, portId };
+            if (keypair) payload.key_name = keypair;
+            if (customScript) payload.customScript = customScript;
+
+            const r = await fetch('/api/instance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': scopedToken, 'x-compute-endpoint': endpoints.compute || '' },
+                body: JSON.stringify(payload)
+            });
+            const j = await r.json();
+            if (!r.ok) { showMessage(j.message || 'Failed to create instance', true, j.details || j); return; }
+            showMessage('Instance created: ' + (j.instance?.id || j.instance?.server?.id || 'OK'), false, j);
+            await refreshInstances();
+        } catch (err) { showMessage('Create instance error: ' + err.message, true); }
+        finally { setLoading(false); }
     }
 
     async function createSubnet() {
@@ -217,8 +349,8 @@
                 body: JSON.stringify({ name, networkId, cidr })
             });
             const data = await res.json();
-            if (!res.ok) { showMessage(data.message || 'Failed to create subnet', true); return; }
-            showMessage('Subnet created: ' + (data.subnet?.id || data.subnet?.name || 'OK'));
+            if (!res.ok) { showMessage(data.message || 'Failed to create subnet', true, data.details || data); return; }
+            showMessage('Subnet created: ' + (data.subnet?.id || data.subnet?.name || 'OK'), false, data);
         } catch (err) { showMessage('Create subnet error: ' + err.message, true); }
         finally { setLoading(false); }
     }
@@ -236,10 +368,10 @@
                 body: JSON.stringify({ networkId, fixedIp: fixedIp || undefined })
             });
             const data = await res.json();
-            if (!res.ok) { showMessage(data.message || 'Failed to create port', true); return; }
+            if (!res.ok) { showMessage(data.message || 'Failed to create port', true, data.details || data); return; }
             const portId = data.port?.id || data.port?.port?.id || '';
             portIdEl.value = portId;
-            showMessage('Port created: ' + (portId || 'OK'));
+            showMessage('Port created: ' + (portId || 'OK'), false, data);
         } catch (err) { showMessage('Create port error: ' + err.message, true); }
         finally { setLoading(false); }
     }
@@ -248,6 +380,9 @@
     testBtn?.addEventListener('click', testConnection);
     loginBtn?.addEventListener('click', login);
     selectProjectBtn?.addEventListener('click', connectProject);
+
+    // Instance create handler (was missing)
+    createInstanceBtn?.addEventListener('click', createInstance);
 
     // Network handlers
     createNetworkBtn?.addEventListener('click', createNetwork);

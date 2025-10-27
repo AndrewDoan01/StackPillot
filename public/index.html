@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenStack Management</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <h1>🌩️ OpenStack Management Console</h1>
-        
+
         <!-- Loading Indicator -->
         <div id="loading" class="loading">Loading...</div>
-        
+
         <!-- Message Display -->
         <div id="message" class="message"></div>
+        <pre id="messageDetails" class="message-details"
+            style="display:none; white-space: pre-wrap; max-height:200px; overflow:auto; background:#f7f7f7; padding:8px; border-radius:4px; border:1px solid #eee;"></pre>
 
         <!-- Test Connection -->
         <div class="section">
@@ -54,11 +58,11 @@
 
         <!-- Resource Management -->
         <div id="resourceSection" class="section" style="display: none;">
-            
+
             <!-- Network Management -->
             <div class="subsection">
                 <h3>🌐 Network Management</h3>
-                
+
                 <div class="form-group">
                     <label>Network Name:</label>
                     <input type="text" id="networkName" placeholder="my-network">
@@ -98,7 +102,7 @@
             <!-- Instance Creation -->
             <div class="subsection">
                 <h3>🖥️ Create Instance</h3>
-                
+
                 <div class="form-group">
                     <label>Instance Name:</label>
                     <input type="text" id="instanceName" placeholder="my-instance">
@@ -150,4 +154,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

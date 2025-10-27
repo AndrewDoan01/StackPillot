@@ -40,15 +40,15 @@ function getNetworkBaseFromHeaderOrCatalog(req) {
             base = authUrl.origin + '/network';
         } catch (e) {
             // fallback: try to strip known suffix
-            base = OPENSTACK_AUTH_URL.replace(/identity\/?v?3?\/?$/i, '').replace(/\/+$/,'') + '/network';
+            base = OPENSTACK_AUTH_URL.replace(/identity\/?v?3?\/?$/i, '').replace(/\/+$/, '') + '/network';
         }
     }
     // If base does not contain a version segment like /v2, append /v2.0
     if (!/\/v\d+/i.test(base)) {
-        base = base.replace(/\/+$/,'') + '/v2.0';
+        base = base.replace(/\/+$/, '') + '/v2.0';
     }
     // remove trailing slash
-    return base.replace(/\/+$/,'');
+    return base.replace(/\/+$/, '');
 }
 
 // ============================================
@@ -237,8 +237,17 @@ app.get('/api/images', async (req, res) => {
     const token = req.headers['x-auth-token'];
 
     try {
+        // allow client to provide image endpoint (from token catalog) via header
+        let imageBase = req.headers['x-image-endpoint'];
+        if (!imageBase) {
+            imageBase = OPENSTACK_AUTH_URL.replace('/identity/v3', '') + '/image/v2';
+        }
+        if (!/\/v\d+/i.test(imageBase)) {
+            imageBase = imageBase.replace(/\/+$/, '') + '/v2';
+        }
+
         const response = await axios.get(
-            `${OPENSTACK_AUTH_URL.replace('/identity/v3', '')}/image/v2/images`,
+            `${imageBase}/images`,
             {
                 headers: {
                     'X-Auth-Token': token
@@ -522,6 +531,10 @@ app.post('/api/instance', async (req, res) => {
             }
         };
 
+        // Debug: log incoming create-instance request and payload sent to Nova
+        console.log('Incoming /api/instance request body:', req.body);
+        console.log('Computed server payload for Nova:', JSON.stringify(serverData, null, 2));
+
         if (securityGroups && securityGroups.length > 0) {
             serverData.server.security_groups = securityGroups.map(sg => ({ name: sg }));
         }
@@ -549,10 +562,52 @@ app.post('/api/instance', async (req, res) => {
 
     } catch (error) {
         console.error('Create instance error:', error.response?.data || error.message);
-        res.status(500).json({
+        // Prefer the real status code from nova if available
+        const status = error.response?.status || 500;
+        const details = error.response?.data || { message: error.message };
+        // Try to extract a human-friendly message from common OpenStack error shapes
+        const humanMessage = details.forbidden?.message || details.error?.message || details.message || details.badRequest?.message || error.message;
+
+        res.status(status).json({
             success: false,
-            message: 'Failed to create instance',
-            error: error.response?.data?.badRequest?.message || error.message
+            message: 'Failed to create instance: ' + humanMessage,
+            details: details
+        });
+    }
+});
+
+// Delete port (cleanup helper)
+app.delete('/api/port/:id', async (req, res) => {
+    const token = req.headers['x-auth-token'];
+    const portId = req.params.id;
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Token is required' });
+    }
+
+    try {
+        const networkBase = getNetworkBaseFromHeaderOrCatalog(req);
+        const response = await axios.delete(
+            `${networkBase}/ports/${portId}`,
+            {
+                headers: {
+                    'X-Auth-Token': token
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Port deleted successfully',
+            result: response.data
+        });
+
+    } catch (error) {
+        console.error('Delete port error:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json({
+            success: false,
+            message: 'Failed to delete port',
+            details: error.response?.data || error.message
         });
     }
 });
